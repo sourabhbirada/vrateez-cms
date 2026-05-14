@@ -7,13 +7,18 @@ function getAuthHeaders() {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!(init?.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const authHeaders = getAuthHeaders();
+  if (authHeaders.Authorization) {
+    headers.set("Authorization", authHeaders.Authorization);
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
-    headers: {
-      ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-      ...getAuthHeaders(),
-      ...(init?.headers || {}),
-    },
+    headers,
   });
 
   const data = await response.json().catch(() => ({}));
