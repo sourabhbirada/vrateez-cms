@@ -2,8 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
 	output: "standalone",
-	basePath: "/cms",
-	trailingSlash: true,
 	images: {
 		remotePatterns: [
 			{
