@@ -2,23 +2,39 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { ArrowLeft, Upload, Plus, X, Save, Eye } from "lucide-react";
 import { apiFetch, uploadFilesToS3 } from "@/lib/api";
 
-export default function NewProductPage() {
+interface ProductResponse {
+  _id: string;
+  name: string;
+  slug: string;
+  description: string;
+  ingredients: string;
+  category: string;
+  weight: string;
+  price: number;
+  originalPrice: number;
+  stock: number;
+  image: string;
+  images: string[];
+  benefits: string[];
+  nutritionHighlights: string[];
+}
+
+export default function EditProductPage() {
+  const params = useParams();
+  const id = params.id as string;
+
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [mainImage, setMainImage] = useState("");
   const [extraImages, setExtraImages] = useState<string[]>([]);
   const [extraImageInput, setExtraImageInput] = useState("");
-  const [tags, setTags] = useState<string[]>(["Protein", "Vegetarian", "FSSAI Certified"]);
+  const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
-  const [nutritionRows, setNutritionRows] = useState([
-    { label: "Calories", value: "" },
-    { label: "Protein", value: "" },
-    { label: "Total Fat", value: "" },
-    { label: "Carbohydrates", value: "" },
-    { label: "Dietary Fiber", value: "" },
-    { label: "Sugar", value: "" },
-  ]);
+  const [nutritionRows, setNutritionRows] = useState<Array<{ label: string; value: string }>>([]);
   const [categories, setCategories] = useState<Array<{ _id: string; name: string; slug: string }>>([]);
   const [form, setForm] = useState({
     name: "",
@@ -37,6 +53,49 @@ export default function NewProductPage() {
       .then((data) => setCategories(data.items))
       .catch(() => setCategories([]));
   }, []);
+
+  useEffect(() => {
+    async function loadProduct() {
+      try {
+        const data = await apiFetch<{ product: ProductResponse }>(`/products/admin/${id}`);
+        const product = data.product;
+        const main = product.image || product.images?.[0] || "";
+        const extras = (product.images || []).filter((img) => img && img !== main);
+
+        setForm({
+          name: product.name || "",
+          slug: product.slug || "",
+          description: product.description || "",
+          ingredients: product.ingredients || "",
+          category: product.category || "",
+          weight: product.weight || "",
+          price: product.price || 0,
+          originalPrice: product.originalPrice || 0,
+          stock: product.stock ?? 100,
+        });
+        setTags(product.benefits || []);
+        setNutritionRows(
+          (product.nutritionHighlights || [])
+            .map((item) => {
+              const [label, ...rest] = item.split(":");
+              const value = rest.join(":").trim();
+              return { label: label.trim(), value };
+            })
+            .filter((row) => row.label || row.value)
+        );
+        setMainImage(main);
+        setExtraImages(extras);
+        setLoading(false);
+      } catch {
+        setNotFound(true);
+        setLoading(false);
+      }
+    }
+
+    if (id) {
+      void loadProduct();
+    }
+  }, [id]);
 
   const addTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
@@ -103,12 +162,12 @@ export default function NewProductPage() {
     setExtraImages((prev) => prev.filter((img) => img !== url));
   };
 
-  const publishProduct = async () => {
+  const updateProduct = async () => {
     const nutritionHighlights = nutritionRows
       .filter((row) => row.label.trim() && row.value.trim())
       .map((row) => `${row.label}: ${row.value}`);
-    await apiFetch("/products", {
-      method: "POST",
+    await apiFetch(`/products/${id}`, {
+      method: "PATCH",
       body: JSON.stringify({
         ...form,
         image: mainImage,
@@ -123,9 +182,23 @@ export default function NewProductPage() {
     });
   };
 
+  if (loading) {
+    return <div className="text-sm text-muted">Loading product...</div>;
+  }
+
+  if (notFound) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-danger">Product not found.</p>
+        <Link href="/products" className="text-sm text-primary hover:underline">
+          Back to products
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn max-w-5xl">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
@@ -135,27 +208,25 @@ export default function NewProductPage() {
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-stone-900">Add New Product</h1>
-            <p className="text-sm text-muted mt-0.5">Fill in the product details below</p>
+            <h1 className="text-2xl font-bold text-stone-900">Edit Product</h1>
+            <p className="text-sm text-muted mt-0.5">Update product details and images</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-surface transition-colors text-stone-600">
             <Eye size={16} /> Preview
           </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-surface transition-colors text-stone-600">
-            Save Draft
-          </button>
-          <button onClick={() => void publishProduct()} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors shadow-sm">
-            <Save size={16} /> Publish
+          <button
+            onClick={() => void updateProduct()}
+            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors shadow-sm"
+          >
+            <Save size={16} /> Update
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Basic Info */}
           <div className="bg-card rounded-xl border border-border p-6">
             <h2 className="text-base font-semibold text-stone-900 mb-4">Basic Information</h2>
             <div className="space-y-4">
@@ -165,7 +236,13 @@ export default function NewProductPage() {
                   type="text"
                   placeholder="e.g., Almond Protein Cookies"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      name: e.target.value,
+                      slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                    })
+                  }
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </div>
@@ -215,7 +292,6 @@ export default function NewProductPage() {
             </div>
           </div>
 
-          {/* Media */}
           <div className="bg-card rounded-xl border border-border p-6">
             <h2 className="text-base font-semibold text-stone-900 mb-4">Media</h2>
             <div className="space-y-3 mb-5">
@@ -283,7 +359,6 @@ export default function NewProductPage() {
             )}
           </div>
 
-          {/* Nutrition Table */}
           <div className="bg-card rounded-xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-stone-900">Nutrition Information</h2>
@@ -337,9 +412,7 @@ export default function NewProductPage() {
           </div>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Pricing */}
           <div className="bg-card rounded-xl border border-border p-6">
             <h2 className="text-base font-semibold text-stone-900 mb-4">Pricing</h2>
             <div className="space-y-4">
@@ -369,16 +442,21 @@ export default function NewProductPage() {
             </div>
           </div>
 
-          {/* Category & Organization */}
           <div className="bg-card rounded-xl border border-border p-6">
             <h2 className="text-base font-semibold text-stone-900 mb-4">Organization</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1.5">Category</label>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-4 py-2.5 border border-border rounded-lg text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-border rounded-lg text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
                   <option>Select category</option>
                   {categories.map((category) => (
-                    <option key={category._id} value={category.slug}>{category.name}</option>
+                    <option key={category._id} value={category.slug}>
+                      {category.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -392,79 +470,38 @@ export default function NewProductPage() {
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1.5">Protein per serving</label>
-                <input
-                  type="text"
-                  placeholder="e.g., 10g"
-                  className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1.5">Tags</label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium"
-                    >
-                      {tag}
-                      <button onClick={() => removeTag(tag)} className="hover:text-primary-dark">
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addTag()}
-                    placeholder="Add tag..."
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                  <button
-                    onClick={addTag}
-                    className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:bg-border transition-colors"
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Inventory */}
           <div className="bg-card rounded-xl border border-border p-6">
-            <h2 className="text-base font-semibold text-stone-900 mb-4">Inventory</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1.5">Stock Quantity</label>
-                <input
-                  type="number"
-                  placeholder="100"
-                  value={form.stock}
-                  onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })}
-                  className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1.5">Low Stock Alert</label>
-                <input
-                  type="number"
-                  placeholder="10"
-                  className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1.5">Status</label>
-                <select className="w-full px-4 py-2.5 border border-border rounded-lg text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                  <option>Active</option>
-                  <option>Draft</option>
-                  <option>Out of Stock</option>
-                </select>
-              </div>
+            <h2 className="text-base font-semibold text-stone-900 mb-4">Tags & Benefits</h2>
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                placeholder="Add a benefit"
+                className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+              <button
+                onClick={addTag}
+                className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-surface transition-colors"
+              >
+                Add
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1 text-xs font-medium text-stone-700"
+                >
+                  {tag}
+                  <button onClick={() => removeTag(tag)} className="text-muted hover:text-danger">
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
             </div>
           </div>
         </div>
