@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import ToastHost from "@/components/layout/ToastHost";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -24,11 +25,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname, router]);
 
   if (!ready) {
-    return <body className="flex h-screen overflow-hidden bg-surface" />;
+    return <body className="h-screen overflow-hidden bg-surface" />;
   }
 
   if (pathname === "/login") {
-    return <body className="flex h-screen overflow-hidden">{children}</body>;
+    return (
+      <body className="min-h-screen bg-surface">
+        {children}
+        <ToastHost />
+      </body>
+    );
   }
 
   return (
@@ -38,6 +44,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Header />
         <main className="flex-1 overflow-y-auto p-6 bg-surface">{children}</main>
       </div>
+      <ToastHost />
     </body>
   );
 }

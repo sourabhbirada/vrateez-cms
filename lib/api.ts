@@ -1,3 +1,5 @@
+import { notify } from "@/lib/notify";
+
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3301/api";
 
 function getAuthHeaders() {
@@ -31,6 +33,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       }
     }
     throw new Error(data?.message || "API request failed");
+  }
+
+  const method = (init?.method || "GET").toUpperCase();
+  const isWrite = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+  const isUpload = path.startsWith("/uploads/");
+  if (isWrite && !isUpload) {
+    const message =
+      method === "DELETE" ? "Deleted successfully" : method === "POST" ? "Created successfully" : "Updated successfully";
+    notify({ message, variant: "success" });
   }
   return data.data as T;
 }
