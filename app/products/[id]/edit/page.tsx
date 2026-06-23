@@ -7,6 +7,12 @@ import { ArrowLeft, Plus, X, Save, Eye } from "lucide-react";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { apiFetch, uploadFilesToS3 } from "@/lib/api";
 
+type PackOptionRow = {
+  units: number;
+  label: string;
+  discountPercent: number;
+};
+
 interface ProductResponse {
   _id: string;
   name: string;
@@ -22,6 +28,8 @@ interface ProductResponse {
   images: string[];
   benefits: string[];
   nutritionHighlights: string[];
+  amazonUrl?: string;
+  packOptions?: PackOptionRow[];
 }
 
 export default function EditProductPage() {
@@ -38,6 +46,8 @@ export default function EditProductPage() {
   const [nutritionRows, setNutritionRows] = useState<Array<{ label: string; value: string }>>([]);
   const [categories, setCategories] = useState<Array<{ _id: string; name: string; slug: string }>>([]);
   const [uploading, setUploading] = useState(false);
+  const [amazonUrl, setAmazonUrl] = useState("");
+  const [packOptions, setPackOptions] = useState<PackOptionRow[]>([]);
   const [form, setForm] = useState({
     name: "",
     slug: "",
@@ -87,6 +97,8 @@ export default function EditProductPage() {
         );
         setMainImage(main);
         setExtraImages(extras);
+        setAmazonUrl(product.amazonUrl || "");
+        setPackOptions(product.packOptions || []);
         setLoading(false);
       } catch {
         setNotFound(true);
@@ -169,6 +181,20 @@ export default function EditProductPage() {
     setExtraImages((prev) => prev.filter((img) => img !== url));
   };
 
+  const addPackOption = () => {
+    setPackOptions((prev) => [...prev, { units: 0, label: "", discountPercent: 0 }]);
+  };
+
+  const updatePackOption = (index: number, field: keyof PackOptionRow, value: string | number) => {
+    setPackOptions((prev) =>
+      prev.map((pack, i) => (i === index ? { ...pack, [field]: value } : pack))
+    );
+  };
+
+  const removePackOption = (index: number) => {
+    setPackOptions((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const updateProduct = async () => {
     const nutritionHighlights = nutritionRows
       .filter((row) => row.label.trim() && row.value.trim())
@@ -185,6 +211,14 @@ export default function EditProductPage() {
             : "",
         benefits: tags,
         nutritionHighlights,
+        amazonUrl: amazonUrl.trim(),
+        packOptions: packOptions
+          .filter((pack) => pack.units > 0)
+          .map((pack) => ({
+            units: Number(pack.units),
+            label: pack.label.trim() || `Pack of ${pack.units}`,
+            discountPercent: Number(pack.discountPercent) || 0,
+          })),
       }),
     });
   };
@@ -471,6 +505,71 @@ export default function EditProductPage() {
                   onChange={(e) => setForm({ ...form, weight: e.target.value })}
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-xl border border-border p-6">
+            <h2 className="text-base font-semibold text-stone-900 mb-4">Amazon & Pack Pricing</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1.5">Buy on Amazon link</label>
+                <input
+                  type="url"
+                  placeholder="https://www.amazon.in/dp/..."
+                  value={amazonUrl}
+                  onChange={(e) => setAmazonUrl(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-stone-700">Quantity packs</label>
+                  <button
+                    type="button"
+                    onClick={addPackOption}
+                    className="flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    <Plus size={15} /> Add pack
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {packOptions.map((pack, index) => (
+                    <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="Units"
+                        value={pack.units || ""}
+                        onChange={(e) => updatePackOption(index, "units", Number(e.target.value))}
+                        className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        placeholder="Discount %"
+                        value={pack.discountPercent}
+                        onChange={(e) => updatePackOption(index, "discountPercent", Number(e.target.value))}
+                        className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePackOption(index)}
+                        className="p-2 text-muted hover:text-danger transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
+                      <input
+                        type="text"
+                        placeholder={`Pack of ${pack.units || "10"}`}
+                        value={pack.label}
+                        onChange={(e) => updatePackOption(index, "label", e.target.value)}
+                        className="col-span-3 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
