@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { API_BASE_URL, apiFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,29 +18,20 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const data2 = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
-      console.log("data" , data2)
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        // method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // body: JSON.stringify({ email, password }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data?.status) {
-        throw new Error(data?.message || "Login failed");
-      }
+      const data = await apiFetch<{ token: string; user: { role: string; name: string; email: string } }>(
+        "/auth/login",
+        { method: "POST", body: JSON.stringify({ email, password }) }
+      );
 
-      const token = data?.data?.token;
-      const user = data?.data?.user;
-      if (!token) {
+      if (!data?.token) {
         throw new Error("Invalid login response");
       }
-      if (user?.role !== "admin") {
+      if (data.user?.role !== "admin") {
         throw new Error("Admin access required");
       }
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("cms_user", JSON.stringify(user));
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("cms_user", JSON.stringify(data.user));
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
