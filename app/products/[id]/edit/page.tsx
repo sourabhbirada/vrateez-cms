@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Upload, Plus, X, Save, Eye } from "lucide-react";
+import { ArrowLeft, Plus, X, Save, Eye } from "lucide-react";
+import { ImageDropzone } from "@/components/ImageDropzone";
 import { apiFetch, uploadFilesToS3 } from "@/lib/api";
 
 interface ProductResponse {
@@ -36,6 +37,7 @@ export default function EditProductPage() {
   const [tagInput, setTagInput] = useState("");
   const [nutritionRows, setNutritionRows] = useState<Array<{ label: string; value: string }>>([]);
   const [categories, setCategories] = useState<Array<{ _id: string; name: string; slug: string }>>([]);
+  const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
     name: "",
     slug: "",
@@ -114,29 +116,34 @@ export default function EditProductPage() {
 
   const uploadImages = async (files: FileList | null) => {
     if (!files?.length) return;
-    const urls = await uploadFilesToS3(Array.from(files));
-    if (!urls.length) return;
-    if (!mainImage) {
-      const [first, ...rest] = urls;
-      setMainImage(first || "");
-      if (rest.length) {
-        setExtraImages((prev) => {
-          const merged = new Set(prev);
-          rest.forEach((url) => {
-            if (url && url !== first) merged.add(url);
+    setUploading(true);
+    try {
+      const urls = await uploadFilesToS3(Array.from(files));
+      if (!urls.length) return;
+      if (!mainImage) {
+        const [first, ...rest] = urls;
+        setMainImage(first || "");
+        if (rest.length) {
+          setExtraImages((prev) => {
+            const merged = new Set(prev);
+            rest.forEach((url) => {
+              if (url && url !== first) merged.add(url);
+            });
+            return Array.from(merged);
           });
-          return Array.from(merged);
-        });
+        }
+        return;
       }
-      return;
-    }
-    setExtraImages((prev) => {
-      const merged = new Set(prev);
-      urls.forEach((url) => {
-        if (url && url !== mainImage) merged.add(url);
+      setExtraImages((prev) => {
+        const merged = new Set(prev);
+        urls.forEach((url) => {
+          if (url && url !== mainImage) merged.add(url);
+        });
+        return Array.from(merged);
       });
-      return Array.from(merged);
-    });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const setMainImageUrl = (url: string) => {
@@ -329,12 +336,7 @@ export default function EditProductPage() {
               </div>
               <p className="text-xs text-muted">Paste S3 URLs to add extra product images.</p>
             </div>
-            <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
-              <Upload size={32} className="mx-auto text-muted mb-3" />
-              <p className="text-sm font-medium text-stone-700">Drop images here or click to upload</p>
-              <p className="text-xs text-muted mt-1">PNG, JPG, WebP up to 5MB. Recommended: 800x800px</p>
-              <input multiple type="file" accept="image/*" className="mt-3 text-xs" onChange={(e) => void uploadImages(e.target.files)} />
-            </div>
+            <ImageDropzone multiple uploading={uploading} onFiles={uploadImages} />
             {[mainImage, ...extraImages].filter(Boolean).length > 0 && (
               <div className="flex gap-3 mt-4 flex-wrap">
                 {[mainImage, ...extraImages].filter(Boolean).map((img, i) => (

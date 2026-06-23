@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Plus, Edit, Trash2, Package } from "lucide-react";
 import { apiFetch, uploadFilesToS3 } from "@/lib/api";
+import { ImageDropzone } from "@/components/ImageDropzone";
 
 interface CategoryItem {
   _id: string;
@@ -20,6 +21,7 @@ export default function CategoriesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "", slug: "", description: "", image: "" });
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   const loadCategories = async () => {
     setLoading(true);
@@ -65,8 +67,13 @@ export default function CategoriesPage() {
 
   const onUploadImage = async (files: FileList | null) => {
     if (!files?.length) return;
-    const [url] = await uploadFilesToS3([files[0]]);
-    if (url) setFormData((prev) => ({ ...prev, image: url }));
+    setUploading(true);
+    try {
+      const [url] = await uploadFilesToS3([files[0]]);
+      if (url) setFormData((prev) => ({ ...prev, image: url }));
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -169,12 +176,17 @@ export default function CategoriesPage() {
                   placeholder="https://your-s3-url"
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => void onUploadImage(e.target.files)}
-                  className="mt-2 text-xs"
+                <ImageDropzone
+                  multiple={false}
+                  uploading={uploading}
+                  onFiles={onUploadImage}
+                  hint="PNG, JPG, WebP up to 5MB"
                 />
+                {formData.image ? (
+                  <div className="relative mt-3 h-32 rounded-lg overflow-hidden border border-border">
+                    <img src={formData.image} alt="Category preview" className="h-full w-full object-cover" />
+                  </div>
+                ) : null}
               </div>
               <div className="flex gap-3">
                 <button onClick={handleSubmit} className="flex-1 bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors">

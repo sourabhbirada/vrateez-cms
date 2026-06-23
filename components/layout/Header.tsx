@@ -22,7 +22,7 @@ export default function Header() {
       <div className="flex items-center gap-3">
         {/* Visit site */}
         <a
-          href="http://localhost:3000"
+          href={`${process.env.WEBSIT_URL}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-sm text-muted hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-surface"

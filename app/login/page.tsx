@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, apiFetch } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,10 +18,12 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
+      const data2 = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+      console.log("data" , data2)
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
+        // method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        // body: JSON.stringify({ email, password }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data?.status) {

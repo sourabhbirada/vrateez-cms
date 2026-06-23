@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import NextImage from "next/image";
 import { Plus, Edit, Trash2, Eye, EyeOff, GripVertical, Image } from "lucide-react";
 import { apiFetch, uploadFilesToS3 } from "@/lib/api";
+import { ImageDropzone } from "@/components/ImageDropzone";
 
 export default function BannersPage() {
   const [banners, setBanners] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", subtitle: "", cta: "", ctaLink: "", bgColor: "#FFF7ED", image: "", position: 1 });
+  const [uploading, setUploading] = useState(false);
 
   const loadBanners = async () => {
     const data = await apiFetch<{ items: any[] }>("/banners/admin");
@@ -38,8 +40,13 @@ export default function BannersPage() {
 
   const onUploadImage = async (files: FileList | null) => {
     if (!files?.length) return;
-    const [url] = await uploadFilesToS3([files[0]]);
-    if (url) setForm((prev) => ({ ...prev, image: url }));
+    setUploading(true);
+    try {
+      const [url] = await uploadFilesToS3([files[0]]);
+      if (url) setForm((prev) => ({ ...prev, image: url }));
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -134,7 +141,12 @@ export default function BannersPage() {
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1.5">Image URL</label>
                 <input type="text" value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="https://..." className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                <input type="file" accept="image/*" onChange={(e) => void onUploadImage(e.target.files)} className="mt-2 text-xs" />
+                <ImageDropzone
+                  multiple={false}
+                  uploading={uploading}
+                  onFiles={onUploadImage}
+                  hint="PNG, JPG, WebP up to 5MB"
+                />
                 {form.image ? (
                   <div className="relative mt-3 h-24 rounded-lg overflow-hidden border border-border">
                     <NextImage src={form.image} alt="Banner preview" fill className="object-cover" sizes="320px" />
