@@ -19,7 +19,7 @@ import {
 	Activity,
 } from "lucide-react";
 import { products } from "@/data/products";
-import { api } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 const monthlyRevenue = [
 	{ month: "Feb", revenue: 24500, orders: 41 },
@@ -69,14 +69,11 @@ export default function AnalyticsPage() {
 			const startDate = new Date();
 			startDate.setDate(startDate.getDate() - dateRange);
 
-			const response = await api.get(`/activity/analytics`, {
-				params: {
-					startDate: startDate.toISOString(),
-					endDate: endDate.toISOString(),
-				},
-			});
+			const response = await apiFetch<AnalyticsData>(
+				`/activity/analytics?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+			);
 
-			setAnalyticsData(response.data.data);
+			setAnalyticsData(response);
 		} catch (error) {
 			console.error("Failed to fetch analytics:", error);
 		} finally {
