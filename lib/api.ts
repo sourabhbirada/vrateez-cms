@@ -2,10 +2,38 @@ import { notify } from "@/lib/notify";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3301/api";
 
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiryTime = payload.exp * 1000; 
+    return Date.now() >= expiryTime;
+  } catch {
+    return true; // If we can't parse the token, consider it expired
+  }
+}
+
+function clearAuthAndRedirect() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("token");
+  localStorage.removeItem("cms_user");
+  if (!window.location.pathname.startsWith("/login")) {
+    window.location.href = "/login";
+  }
+}
+
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
   const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  
+  if (!token) return {};
+  
+  // Check if token is expired before making the request
+  if (isTokenExpired(token)) {
+    clearAuthAndRedirect();
+    throw new Error("Session expired. Please login again.");
+  }
+  
+  return { Authorization: `Bearer ${token}` };
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -26,11 +54,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data?.status === false) {
     if (response.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("cms_user");
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
-      }
+      clearAuthAndRedirect();
     }
     throw new Error(data?.message || "API request failed");
   }

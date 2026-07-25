@@ -21,6 +21,9 @@ type OrderAddress = {
 
 type AdminOrder = {
   _id: string;
+  orderId?: string;
+  trackingNumber?: string;
+  courierPartner?: string;
   user?: { name?: string; email?: string; phone?: string } | null;
   guestInfo?: { name?: string; email?: string; phone?: string } | null;
   items: OrderItem[];
@@ -69,6 +72,11 @@ export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | AdminOrder["orderStatus"]>("all");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [newOrderId, setNewOrderId] = useState("");
+  const [editingTracking, setEditingTracking] = useState<string | null>(null);
+  const [newTrackingNumber, setNewTrackingNumber] = useState("");
+  const [newCourier, setNewCourier] = useState("shadowfax");
 
   useEffect(() => {
     async function loadOrders() {
@@ -92,12 +100,52 @@ export default function OrdersPage() {
     { key: "cancelled", label: "Cancelled" },
   ];
 
+  const handleUpdateOrderId = async (orderId: string, newId: string) => {
+    try {
+      await apiFetch(`/orders/${orderId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ orderId: newId }),
+      });
+      
+      setOrders((prev) =>
+        prev.map((o) => (o._id === orderId ? { ...o, orderId: newId } : o))
+      );
+      setEditingOrderId(null);
+      setNewOrderId("");
+    } catch (error) {
+      alert("Failed to update order ID");
+    }
+  };
+
+  const handleUpdateTracking = async (dbId: string, trackingNum: string, courier: string) => {
+    try {
+      await apiFetch(`/orders/${dbId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ 
+          trackingNumber: trackingNum,
+          courierPartner: courier 
+        }),
+      });
+      
+      setOrders((prev) =>
+        prev.map((o) => (o._id === dbId ? { ...o, trackingNumber: trackingNum, courierPartner: courier } : o))
+      );
+      setEditingTracking(null);
+      setNewTrackingNumber("");
+      setNewCourier("shadowfax");
+    } catch (error) {
+      alert("Failed to update tracking information");
+    }
+  };
+
   const filtered = orders.filter((order) => {
     const customerName = order.user?.name || order.guestInfo?.name || "Guest";
     const customerEmail = order.user?.email || order.guestInfo?.email || "";
     const query = search.toLowerCase();
     const matchSearch =
       order._id.toLowerCase().includes(query) ||
+      (order.orderId && order.orderId.toLowerCase().includes(query)) ||
+      (order.trackingNumber && order.trackingNumber.toLowerCase().includes(query)) ||
       customerName.toLowerCase().includes(query) ||
       customerEmail.toLowerCase().includes(query);
     const matchStatus = statusFilter === "all" || order.orderStatus === statusFilter;
@@ -150,7 +198,7 @@ export default function OrdersPage() {
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
             type="text"
-            placeholder="Search by order ID or customer..."
+            placeholder="Search by DB ID, Order ID, Tracking # or customer..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
@@ -179,7 +227,9 @@ export default function OrdersPage() {
                 <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">
                   <input type="checkbox" className="rounded border-border" />
                 </th>
+                <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">DB ID</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Order ID</th>
+                <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Tracking</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Customer</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">
                   <span className="flex items-center gap-1 cursor-pointer hover:text-stone-700">
@@ -206,7 +256,122 @@ export default function OrdersPage() {
                   <td className="px-6 py-4">
                     <input type="checkbox" className="rounded border-border" />
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-primary">#{order._id.slice(-8)}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-muted">#{order._id.slice(-8)}</td>
+                  <td className="px-6 py-4">
+                    {editingOrderId === order._id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={newOrderId}
+                          onChange={(e) => setNewOrderId(e.target.value)}
+                          placeholder="Enter Order ID"
+                          className="px-2 py-1 text-sm border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                        <button
+                          onClick={() => handleUpdateOrderId(order._id, newOrderId)}
+                          className="px-2 py-1 text-xs bg-primary text-white rounded hover:bg-primary/90"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingOrderId(null);
+                            setNewOrderId("");
+                          }}
+                          className="px-2 py-1 text-xs border border-border rounded hover:bg-surface"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-primary">
+                          {order.orderId || "-"}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setEditingOrderId(order._id);
+                            setNewOrderId(order.orderId || "");
+                          }}
+                          className="text-xs text-muted hover:text-primary"
+                        >
+                          {order.orderId ? "Edit" : "Add"}
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {editingTracking === order._id ? (
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="text"
+                          value={newTrackingNumber}
+                          onChange={(e) => setNewTrackingNumber(e.target.value)}
+                          placeholder="Tracking Number"
+                          className="px-2 py-1 text-sm border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                        <select
+                          value={newCourier}
+                          onChange={(e) => setNewCourier(e.target.value)}
+                          className="px-2 py-1 text-sm border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                          <option value="shadowfax">Shadowfax</option>
+                          <option value="delhivery">Delhivery</option>
+                          <option value="bluedart">BlueDart</option>
+                          <option value="ecom">Ecom Express</option>
+                          <option value="dtdc">DTDC</option>
+                        </select>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleUpdateTracking(order._id, newTrackingNumber, newCourier)}
+                            className="px-2 py-1 text-xs bg-primary text-white rounded hover:bg-primary/90"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingTracking(null);
+                              setNewTrackingNumber("");
+                              setNewCourier("shadowfax");
+                            }}
+                            className="px-2 py-1 text-xs border border-border rounded hover:bg-surface"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {order.trackingNumber ? (
+                          <>
+                            <span className="text-xs font-mono text-stone-700">{order.trackingNumber}</span>
+                            <span className="text-xs text-muted">{order.courierPartner || 'shadowfax'}</span>
+                            <button
+                              onClick={() => {
+                                setEditingTracking(order._id);
+                                setNewTrackingNumber(order.trackingNumber || "");
+                                setNewCourier(order.courierPartner || "shadowfax");
+                              }}
+                              className="text-xs text-muted hover:text-primary text-left"
+                            >
+                              Edit
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingTracking(order._id);
+                              setNewTrackingNumber("");
+                              setNewCourier("shadowfax");
+                            }}
+                            className="text-xs text-primary hover:underline text-left"
+                          >
+                            Add Tracking
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <div>
                       <p className="text-sm font-medium text-stone-800">{order.user?.name || order.guestInfo?.name || "Guest"}</p>
