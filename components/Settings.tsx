@@ -119,10 +119,13 @@ export default function Settings() {
 
   const updateSettings = (section: keyof Settings, field: string, value: any) => {
     if (!settings) return;
+    const currentSection = settings[section];
+    if (typeof currentSection !== 'object' || currentSection === null) return;
+    
     setSettings({
       ...settings,
       [section]: {
-        ...settings[section],
+        ...currentSection,
         [field]: value,
       },
     });
@@ -130,12 +133,18 @@ export default function Settings() {
 
   const updateNestedSettings = (section: keyof Settings, nestedField: string, field: string, value: any) => {
     if (!settings) return;
+    const currentSection = settings[section];
+    if (typeof currentSection !== 'object' || currentSection === null) return;
+    
+    const currentNested = (currentSection as any)[nestedField];
+    if (typeof currentNested !== 'object' || currentNested === null) return;
+    
     setSettings({
       ...settings,
       [section]: {
-        ...settings[section],
+        ...currentSection,
         [nestedField]: {
-          ...(settings[section] as any)[nestedField],
+          ...currentNested,
           [field]: value,
         },
       },
