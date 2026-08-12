@@ -102,16 +102,21 @@ export default function Orders() {
 
   const handleUpdateOrderId = async (orderId: string, newId: string) => {
     try {
-      await apiFetch(`/orders/${orderId}/status`, {
+      const data = await apiFetch<{ notified?: boolean; notification?: any }>(`/orders/${orderId}/status`, {
         method: "PATCH",
         body: JSON.stringify({ orderId: newId }),
       });
-      
+
       setOrders((prev) =>
         prev.map((o) => (o._id === orderId ? { ...o, orderId: newId } : o))
       );
       setEditingOrderId(null);
       setNewOrderId("");
+      if (data?.notified) {
+        alert("Order ID saved. Customer notified on email & WhatsApp.");
+      } else {
+        alert("Order ID saved.");
+      }
     } catch (error) {
       alert("Failed to update order ID");
     }
@@ -119,22 +124,47 @@ export default function Orders() {
 
   const handleUpdateTracking = async (dbId: string, trackingNum: string, courier: string) => {
     try {
-      await apiFetch(`/orders/${dbId}/status`, {
+      const data = await apiFetch<{ notified?: boolean }>(`/orders/${dbId}/status`, {
         method: "PATCH",
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           trackingNumber: trackingNum,
-          courierPartner: courier 
+          courierPartner: courier,
+          orderStatus: "shipped",
         }),
       });
-      
+
       setOrders((prev) =>
-        prev.map((o) => (o._id === dbId ? { ...o, trackingNumber: trackingNum, courierPartner: courier } : o))
+        prev.map((o) =>
+          o._id === dbId
+            ? { ...o, trackingNumber: trackingNum, courierPartner: courier, orderStatus: "shipped" }
+            : o
+        )
       );
       setEditingTracking(null);
       setNewTrackingNumber("");
       setNewCourier("shadowfax");
+      if (data?.notified) {
+        alert("Tracking saved & order marked shipped. Customer notified on email & WhatsApp.");
+      } else {
+        alert("Tracking saved.");
+      }
     } catch (error) {
       alert("Failed to update tracking information");
+    }
+  };
+
+  const handleUpdateStatus = async (dbId: string, orderStatus: AdminOrder["orderStatus"]) => {
+    try {
+      const data = await apiFetch<{ notified?: boolean }>(`/orders/${dbId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ orderStatus }),
+      });
+      setOrders((prev) => prev.map((o) => (o._id === dbId ? { ...o, orderStatus } : o)));
+      if (data?.notified) {
+        alert(`Status updated to ${orderStatus}. Customer notified.`);
+      }
+    } catch {
+      alert("Failed to update status");
     }
   };
 
@@ -167,7 +197,9 @@ export default function Orders() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-stone-900">Orders</h1>
-          <p className="text-sm text-muted mt-1">Manage and track customer orders</p>
+          <p className="text-sm text-muted mt-1">
+            Manage orders — updating Order ID, tracking, or status emails &amp; WhatsApps the customer automatically
+          </p>
         </div>
         <button className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-surface transition-colors text-stone-600">
           <Download size={16} /> Export CSV
@@ -388,9 +420,20 @@ export default function Orders() {
                   </td>
                   <td className="px-6 py-4 text-sm text-muted">{toTitle(order.paymentMethod)}</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[order.orderStatus]}`}>
-                      {toTitle(order.orderStatus)}
-                    </span>
+                    <select
+                      value={order.orderStatus}
+                      onChange={(e) =>
+                        void handleUpdateStatus(order._id, e.target.value as AdminOrder["orderStatus"])
+                      }
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border border-border bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 ${statusColor[order.orderStatus]}`}
+                      title="Change status — notifies customer"
+                    >
+                      <option value="placed">Placed</option>
+                      <option value="processing">Processing</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
                   </td>
                   <td className="px-6 py-4 text-sm text-muted">{order.contactPhone || order.user?.phone || order.guestInfo?.phone || "-"}</td>
                   <td className="px-6 py-4 text-sm text-muted">

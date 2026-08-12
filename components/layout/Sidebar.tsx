@@ -15,6 +15,7 @@ import {
   Settings,
   PackageOpen,
   Ticket,
+  Gift,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const navItems = [
   { label: "Bulk Orders", href: "/bulk-orders", icon: PackageOpen },
   { label: "Customers", href: "/customers", icon: Users },
   { label: "Banners", href: "/banners", icon: Image },
+  { label: "Deals", href: "/deals", icon: Gift },
   { label: "Testimonials", href: "/testimonials", icon: MessageSquareQuote },
   { label: "FAQ", href: "/faq", icon: HelpCircle },
   { label: "Coupons", href: "/coupons", icon: Ticket },

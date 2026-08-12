@@ -18,18 +18,7 @@ import {
 	Chrome,
 	Activity,
 } from "lucide-react";
-import { products } from "@/data/products";
 import { apiFetch } from "@/lib/api";
-
-const monthlyRevenue = [
-	{ month: "Feb", revenue: 24500, orders: 41 },
-	{ month: "Mar", revenue: 32100, orders: 52 },
-];
-
-const topCities = [
-	{ city: "Mumbai", orders: 89, revenue: "₹58,200", pct: 34 },
-	{ city: "Delhi", orders: 72, revenue: "₹47,100", pct: 28 },
-];
 
 interface AnalyticsData {
 	summary: {
@@ -56,7 +45,6 @@ export default function Analytics() {
 	const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dateRange, setDateRange] = useState(30); // Default 30 days
-	const maxRevenue = Math.max(...monthlyRevenue.map((m) => m.revenue));
 
 	useEffect(() => {
 		fetchAnalytics();

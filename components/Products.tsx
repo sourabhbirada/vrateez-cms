@@ -11,6 +11,7 @@ import {
   Edit,
   Trash2,
   Eye,
+  EyeOff,
   Star,
   ArrowUpDown,
 } from "lucide-react";
@@ -19,14 +20,18 @@ import { apiFetch } from "@/lib/api";
 export default function Products() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Disabled">("All");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [categoriesMap, setCategoriesMap] = useState<Record<string, string>>({});
 
+  const loadProducts = async () => {
+    const data = await apiFetch<{ items: any[] }>("/products/admin");
+    setProducts(data.items);
+  };
+
   useEffect(() => {
-    apiFetch<{ items: any[] }>("/products/admin")
-      .then((data) => setProducts(data.items))
-      .catch(() => setProducts([]));
+    loadProducts().catch(() => setProducts([]));
     apiFetch<{ items: any[] }>("/categories/admin")
       .then((data) => {
         const map: Record<string, string> = {};
@@ -43,8 +48,20 @@ export default function Products() {
   const filtered = products.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchCategory = categoryFilter === "All" || categoriesMap[p.category] === categoryFilter;
-    return matchSearch && matchCategory;
+    const matchStatus =
+      statusFilter === "All" ||
+      (statusFilter === "Active" ? p.isActive !== false : p.isActive === false);
+    return matchSearch && matchCategory && matchStatus;
   });
+
+  const toggleActive = async (product: any) => {
+    await apiFetch(`/products/${product._id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isActive: !(product.isActive !== false) }),
+    });
+    setOpenMenu(null);
+    await loadProducts();
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -90,6 +107,15 @@ export default function Products() {
               ))}
             </select>
           </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "All" | "Active" | "Disabled")}
+            className="px-3 py-2.5 bg-card border border-border rounded-lg text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          >
+            <option value="All">All status</option>
+            <option value="Active">Active</option>
+            <option value="Disabled">Disabled</option>
+          </select>
         </div>
       </div>
 
@@ -121,6 +147,7 @@ export default function Products() {
                 </th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Rating</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Discount</th>
+                <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-muted uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -171,6 +198,20 @@ export default function Products() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
+                    <button
+                      type="button"
+                      onClick={() => void toggleActive(product)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        product.isActive !== false
+                          ? "bg-success/10 text-success hover:bg-success/20"
+                          : "bg-stone-100 text-stone-500 hover:bg-stone-200"
+                      }`}
+                      title={product.isActive !== false ? "Click to disable" : "Click to enable"}
+                    >
+                      {product.isActive !== false ? "Active" : "Disabled"}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4">
                     <div className="relative">
                       <button
                         onClick={() => setOpenMenu(openMenu === product._id ? null : product._id)}
@@ -179,7 +220,7 @@ export default function Products() {
                         <MoreVertical size={18} />
                       </button>
                       {openMenu === product._id && (
-                        <div className="absolute right-0 top-8 w-40 bg-card rounded-lg shadow-xl border border-border py-1 z-50 animate-fadeIn">
+                        <div className="absolute right-0 top-8 w-44 bg-card rounded-lg shadow-xl border border-border py-1 z-50 animate-fadeIn">
                           <Link
                             href={`/products/${product._id}`}
                             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface transition-colors text-stone-700"
@@ -192,7 +233,33 @@ export default function Products() {
                           >
                             <Edit size={15} /> Edit
                           </Link>
-                          <button onClick={async () => { await apiFetch(`/products/${product._id}`, { method: "PATCH", body: JSON.stringify({ isActive: false }) }); const data = await apiFetch<{ items: any[] }>("/products/admin"); setProducts(data.items); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface transition-colors text-danger w-full text-left">
+                          <button
+                            onClick={() => void toggleActive(product)}
+                            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface transition-colors text-stone-700 w-full text-left"
+                          >
+                            {product.isActive !== false ? (
+                              <>
+                                <EyeOff size={15} /> Disable
+                              </>
+                            ) : (
+                              <>
+                                <Eye size={15} /> Enable
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              await apiFetch(`/products/${product._id}`, { method: "DELETE" }).catch(async () => {
+                                await apiFetch(`/products/${product._id}`, {
+                                  method: "PATCH",
+                                  body: JSON.stringify({ isActive: false }),
+                                });
+                              });
+                              setOpenMenu(null);
+                              await loadProducts();
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface transition-colors text-danger w-full text-left"
+                          >
                             <Trash2 size={15} /> Delete
                           </button>
                         </div>

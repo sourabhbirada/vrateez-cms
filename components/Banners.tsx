@@ -10,7 +10,7 @@ export default function Banners() {
   const [banners, setBanners] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", subtitle: "", cta: "", ctaLink: "", bgColor: "#FFF7ED", image: "", video: "", position: 1 });
+  const [form, setForm] = useState({ title: "", subtitle: "", tag: "", cta: "", ctaLink: "", bgColor: "#FFF7ED", image: "", video: "", position: 1, macrosText: "" });
   const [uploading, setUploading] = useState(false);
 
   const loadBanners = async () => {
@@ -24,15 +24,48 @@ export default function Banners() {
 
   const handleEdit = (b: any) => {
     setEditId(b._id);
-    setForm({ title: b.title, subtitle: b.subtitle, cta: b.cta, ctaLink: b.ctaLink, bgColor: b.bgColor, image: b.image || "", video: b.video || "", position: b.position || 1 });
+    setForm({
+      title: b.title,
+      subtitle: b.subtitle,
+      tag: b.tag || "",
+      cta: b.cta,
+      ctaLink: b.ctaLink,
+      bgColor: b.bgColor,
+      image: b.image || "",
+      video: b.video || "",
+      position: b.position || 1,
+      macrosText: (b.macros || []).map((m: any) => `${m.value}|${m.label}`).join("\n"),
+    });
     setShowForm(true);
   };
 
+  const parseMacros = (text: string) =>
+    text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [value, ...rest] = line.split("|");
+        return { value: (value || "").trim(), label: rest.join("|").trim() || value };
+      });
+
   const saveBanner = async () => {
+    const payload = {
+      title: form.title,
+      subtitle: form.subtitle,
+      tag: form.tag,
+      cta: form.cta,
+      ctaLink: form.ctaLink,
+      bgColor: form.bgColor,
+      image: form.image,
+      video: form.video,
+      position: form.position,
+      macros: parseMacros(form.macrosText),
+    };
     if (editId) {
-      await apiFetch(`/banners/${editId}`, { method: "PATCH", body: JSON.stringify(form) });
+      await apiFetch(`/banners/${editId}`, { method: "PATCH", body: JSON.stringify(payload) });
     } else {
-      await apiFetch("/banners", { method: "POST", body: JSON.stringify(form) });
+      await apiFetch("/banners", { method: "POST", body: JSON.stringify(payload) });
     }
     setShowForm(false);
     await loadBanners();
@@ -57,7 +90,7 @@ export default function Banners() {
           <p className="text-sm text-muted mt-1">Manage homepage carousel slides</p>
         </div>
         <button
-          onClick={() => { setEditId(null); setForm({ title: "", subtitle: "", cta: "", ctaLink: "", bgColor: "#FFF7ED", image: "", video: "", position: 1 }); setShowForm(true); }}
+          onClick={() => { setEditId(null); setForm({ title: "", subtitle: "", tag: "", cta: "", ctaLink: "", bgColor: "#FFF7ED", image: "", video: "", position: 1, macrosText: "" }); setShowForm(true); }}
           className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors shadow-sm"
         >
           <Plus size={18} /> Add Banner
@@ -120,6 +153,10 @@ export default function Banners() {
                 <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Hero headline..." className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
               </div>
               <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1.5">Tag / eyebrow</label>
+                <input type="text" value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })} placeholder="Limited Time Offer · Raksha Bandhan" className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1.5">Subtitle</label>
                 <input type="text" value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} placeholder="Supporting text..." className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
               </div>
@@ -164,6 +201,16 @@ export default function Banners() {
                     <video src={form.video} className="w-full h-full object-cover" muted loop autoPlay playsInline />
                   </div>
                 ) : null}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1.5">Macros (one per line: value|label)</label>
+                <textarea
+                  rows={3}
+                  value={form.macrosText}
+                  onChange={(e) => setForm({ ...form, macrosText: e.target.value })}
+                  placeholder={"₹379|Special Price\n₹120|You Save\n6|Items"}
+                  className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1.5">Position</label>

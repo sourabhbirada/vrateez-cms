@@ -5,6 +5,10 @@ import Link from "next/link";
 import { ArrowLeft, Plus, X, Save, Eye } from "lucide-react";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { apiFetch, uploadFilesToS3 } from "@/lib/api";
+import ProductCustomizationEditor, {
+  emptyCustomization,
+  type ProductCustomization,
+} from "@/components/ProductCustomizationEditor";
 
 type PackOptionRow = {
   units: number;
@@ -34,6 +38,8 @@ export default function NewProductPage() {
     { units: 20, label: "Pack of 20", discountPercent: 10 },
     { units: 30, label: "Pack of 30", discountPercent: 15 },
   ]);
+  const [customization, setCustomization] = useState<ProductCustomization>(emptyCustomization());
+  const [isActive, setIsActive] = useState(true);
   const [form, setForm] = useState({
     name: "",
     slug: "",
@@ -153,6 +159,7 @@ export default function NewProductPage() {
         benefits: tags,
         nutritionHighlights,
         amazonUrl: amazonUrl.trim(),
+        isActive,
         packOptions: packOptions
           .filter((pack) => pack.units > 0)
           .map((pack) => ({
@@ -160,6 +167,21 @@ export default function NewProductPage() {
             label: pack.label.trim() || `Pack of ${pack.units}`,
             discountPercent: Number(pack.discountPercent) || 0,
           })),
+        customization: {
+          enabled: customization.enabled,
+          title: customization.title.trim() || "Customize your product",
+          options: customization.enabled
+            ? customization.options
+                .filter((opt) => opt.label.trim() && opt.key.trim())
+                .map((opt) => ({
+                  ...opt,
+                  choices:
+                    opt.type === "select"
+                      ? opt.choices.filter((c) => c.label.trim() && c.value.trim())
+                      : [],
+                }))
+            : [],
+        },
       }),
     });
   };
@@ -538,6 +560,8 @@ export default function NewProductPage() {
             </div>
           </div>
 
+          <ProductCustomizationEditor value={customization} onChange={setCustomization} />
+
           {/* Inventory */}
           <div className="bg-card rounded-xl border border-border p-6">
             <h2 className="text-base font-semibold text-stone-900 mb-4">Inventory</h2>
@@ -562,11 +586,15 @@ export default function NewProductPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1.5">Status</label>
-                <select className="w-full px-4 py-2.5 border border-border rounded-lg text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                  <option>Active</option>
-                  <option>Draft</option>
-                  <option>Out of Stock</option>
+                <select
+                  value={isActive ? "active" : "disabled"}
+                  onChange={(e) => setIsActive(e.target.value === "active")}
+                  className="w-full px-4 py-2.5 border border-border rounded-lg text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="active">Active (visible on store)</option>
+                  <option value="disabled">Disabled (hidden from store)</option>
                 </select>
+                <p className="text-xs text-muted mt-1">Disabled products stay in CMS but are hidden from shop & homepage.</p>
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { Save, Store, Truck, Phone, Globe, Shield, Bell, Palette } from "lucide-
 import { apiFetch } from "@/lib/api";
 
 const tabs = [
-  { id: "general", label: "General", icon: Store },
+  { id: "content", label: "Homepage Content", icon: Store },
   { id: "shipping", label: "Shipping", icon: Truck },
   { id: "contact", label: "Contact", icon: Phone },
   { id: "seo", label: "SEO & Social", icon: Globe },
@@ -70,13 +70,26 @@ interface Settings {
     twitter: string;
     youtube: string;
   };
+  announcementBar?: {
+    enabled: boolean;
+    text: string;
+    link?: string;
+    bgColor?: string;
+    textColor?: string;
+  };
+  content?: {
+    benefits?: Array<{ title: string; subtitle: string; image: string; bgColor?: string }>;
+    partners?: Array<{ name: string; url?: string; logoUrl?: string }>;
+    featureBadges?: string[];
+  };
 }
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState("content");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [badgesText, setBadgesText] = useState("");
 
   useEffect(() => {
     fetchSettings();
@@ -86,7 +99,22 @@ export default function Settings() {
     try {
       setLoading(true);
       const response = await apiFetch<{ settings: Settings }>("/settings/admin");
-      setSettings(response.settings);
+      setSettings({
+        ...response.settings,
+        announcementBar: {
+          enabled: response.settings.announcementBar?.enabled !== false,
+          text: response.settings.announcementBar?.text || "",
+          link: response.settings.announcementBar?.link || "/shop",
+          bgColor: response.settings.announcementBar?.bgColor || "#241F16",
+          textColor: response.settings.announcementBar?.textColor || "#F3EAD8",
+        },
+        content: {
+          benefits: response.settings.content?.benefits || [],
+          partners: response.settings.content?.partners || [],
+          featureBadges: response.settings.content?.featureBadges || [],
+        },
+      });
+      setBadgesText((response.settings.content?.featureBadges || []).join("\n"));
     } catch (error) {
       console.error("Failed to fetch settings:", error);
     } finally {
@@ -96,7 +124,7 @@ export default function Settings() {
 
   const handleSave = async () => {
     if (!settings) return;
-    
+
     try {
       setSaving(true);
       await apiFetch("/settings", {
@@ -108,6 +136,15 @@ export default function Settings() {
           contact: settings.contact,
           seo: settings.seo,
           socialMedia: settings.socialMedia,
+          announcementBar: settings.announcementBar,
+          content: {
+            benefits: settings.content?.benefits || [],
+            partners: settings.content?.partners || [],
+            featureBadges: badgesText
+              .split("\n")
+              .map((line) => line.trim())
+              .filter(Boolean),
+          },
         }),
       });
     } catch (error) {
@@ -202,50 +239,315 @@ export default function Settings() {
 
         {/* Content */}
         <div className="lg:col-span-3">
-          {activeTab === "general" && (
+          {activeTab === "content" && (
             <div className="bg-card rounded-xl border border-border p-6 space-y-6 animate-fadeIn">
-              <h2 className="text-lg font-semibold text-stone-900">General Settings</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Store Name</label>
-                  <input type="text" defaultValue="Vrateez" className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+              <h2 className="text-lg font-semibold text-stone-900">Homepage Content</h2>
+              <p className="text-sm text-muted">
+                Benefits, partners, and feature badges shown on the storefront. Leave empty to hide a section.
+              </p>
+
+              <div className="rounded-xl border border-border bg-surface/40 p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-stone-800">Top highlight bar</h3>
+                    <p className="text-xs text-muted mt-0.5">
+                      Slim black bar above the header. Leave text empty to auto-use free delivery threshold.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={settings.announcementBar?.enabled !== false}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          announcementBar: {
+                            ...(settings.announcementBar || {
+                              enabled: true,
+                              text: "",
+                              link: "/shop",
+                              bgColor: "#241F16",
+                              textColor: "#F3EAD8",
+                            }),
+                            enabled: e.target.checked,
+                          },
+                        })
+                      }
+                      className="rounded border-border"
+                    />
+                    Enabled
+                  </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Store URL</label>
-                  <input type="text" defaultValue="https://vrateez.com" className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Headline</label>
+                  <input
+                    type="text"
+                    value={settings.announcementBar?.text || ""}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        announcementBar: {
+                          ...(settings.announcementBar || {
+                            enabled: true,
+                            text: "",
+                            link: "/shop",
+                            bgColor: "#241F16",
+                            textColor: "#F3EAD8",
+                          }),
+                          text: e.target.value,
+                        },
+                      })
+                    }
+                    placeholder={`Free delivery on orders above ₹${settings.shipping?.freeShippingThreshold || 499}`}
+                    className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Currency</label>
-                  <select defaultValue="INR" className="w-full px-4 py-2.5 border border-border rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    <option value="INR">â‚¹ INR - Indian Rupee</option>
-                    <option value="USD">$ USD - US Dollar</option>
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Link</label>
+                    <input
+                      type="text"
+                      value={settings.announcementBar?.link || "/shop"}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          announcementBar: {
+                            ...(settings.announcementBar as NonNullable<Settings["announcementBar"]>),
+                            link: e.target.value,
+                          },
+                        })
+                      }
+                      className="w-full px-4 py-2.5 border border-border rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Background</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={settings.announcementBar?.bgColor || "#241F16"}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            announcementBar: {
+                              ...(settings.announcementBar as NonNullable<Settings["announcementBar"]>),
+                              bgColor: e.target.value,
+                            },
+                          })
+                        }
+                        className="w-10 h-10 rounded border border-border cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={settings.announcementBar?.bgColor || "#241F16"}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            announcementBar: {
+                              ...(settings.announcementBar as NonNullable<Settings["announcementBar"]>),
+                              bgColor: e.target.value,
+                            },
+                          })
+                        }
+                        className="flex-1 px-3 py-2 border border-border rounded-lg text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Text color</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={settings.announcementBar?.textColor || "#F3EAD8"}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            announcementBar: {
+                              ...(settings.announcementBar as NonNullable<Settings["announcementBar"]>),
+                              textColor: e.target.value,
+                            },
+                          })
+                        }
+                        className="w-10 h-10 rounded border border-border cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={settings.announcementBar?.textColor || "#F3EAD8"}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            announcementBar: {
+                              ...(settings.announcementBar as NonNullable<Settings["announcementBar"]>),
+                              textColor: e.target.value,
+                            },
+                          })
+                        }
+                        className="flex-1 px-3 py-2 border border-border rounded-lg text-sm font-mono"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Timezone</label>
-                  <select defaultValue="IST" className="w-full px-4 py-2.5 border border-border rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    <option value="IST">Asia/Kolkata (IST)</option>
-                    <option value="UTC">UTC</option>
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Store Description</label>
-                  <textarea rows={3} defaultValue="Premium protein-rich snacks made with grass-fed whey protein. 100% vegetarian, FSSAI certified, no added sugar." className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-y"></textarea>
+                <div
+                  className="rounded-lg px-3 py-2 text-center text-xs"
+                  style={{
+                    backgroundColor: settings.announcementBar?.bgColor || "#241F16",
+                    color: settings.announcementBar?.textColor || "#F3EAD8",
+                  }}
+                >
+                  Preview:{" "}
+                  {settings.announcementBar?.text?.trim() ||
+                    `Free delivery on orders above ₹${settings.shipping?.freeShippingThreshold || 499} · Pan-India shipping`}
                 </div>
               </div>
 
-              <div className="border-t border-border pt-6">
-                <h3 className="text-base font-semibold text-stone-900 mb-4">Business Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1.5">GSTIN</label>
-                    <input type="text" placeholder="Enter your GSTIN" className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1.5">FSSAI License</label>
-                    <input type="text" placeholder="FSSAI license number" className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                  </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-stone-800">Benefits</h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettings({
+                        ...settings,
+                        content: {
+                          ...settings.content,
+                          benefits: [
+                            ...(settings.content?.benefits || []),
+                            { title: "", subtitle: "", image: "", bgColor: "#F5E6C8" },
+                          ],
+                        },
+                      })
+                    }
+                    className="text-sm text-primary hover:underline"
+                  >
+                    + Add benefit
+                  </button>
                 </div>
+                {(settings.content?.benefits || []).map((b, index) => (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 border border-border rounded-lg p-3">
+                    <input
+                      type="text"
+                      placeholder="Title"
+                      value={b.title}
+                      onChange={(e) => {
+                        const benefits = [...(settings.content?.benefits || [])];
+                        benefits[index] = { ...benefits[index], title: e.target.value };
+                        setSettings({ ...settings, content: { ...settings.content, benefits } });
+                      }}
+                      className="px-3 py-2 border border-border rounded-lg text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Subtitle"
+                      value={b.subtitle}
+                      onChange={(e) => {
+                        const benefits = [...(settings.content?.benefits || [])];
+                        benefits[index] = { ...benefits[index], subtitle: e.target.value };
+                        setSettings({ ...settings, content: { ...settings.content, benefits } });
+                      }}
+                      className="px-3 py-2 border border-border rounded-lg text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Image URL"
+                      value={b.image}
+                      onChange={(e) => {
+                        const benefits = [...(settings.content?.benefits || [])];
+                        benefits[index] = { ...benefits[index], image: e.target.value };
+                        setSettings({ ...settings, content: { ...settings.content, benefits } });
+                      }}
+                      className="md:col-span-2 px-3 py-2 border border-border rounded-lg text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const benefits = (settings.content?.benefits || []).filter((_, i) => i !== index);
+                        setSettings({ ...settings, content: { ...settings.content, benefits } });
+                      }}
+                      className="text-xs text-danger text-left"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-3 border-t border-border pt-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-stone-800">Partners (Available At)</h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettings({
+                        ...settings,
+                        content: {
+                          ...settings.content,
+                          partners: [...(settings.content?.partners || []), { name: "", url: "", logoUrl: "" }],
+                        },
+                      })
+                    }
+                    className="text-sm text-primary hover:underline"
+                  >
+                    + Add partner
+                  </button>
+                </div>
+                {(settings.content?.partners || []).map((p, index) => (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-2 border border-border rounded-lg p-3">
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={p.name}
+                      onChange={(e) => {
+                        const partners = [...(settings.content?.partners || [])];
+                        partners[index] = { ...partners[index], name: e.target.value };
+                        setSettings({ ...settings, content: { ...settings.content, partners } });
+                      }}
+                      className="px-3 py-2 border border-border rounded-lg text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="URL"
+                      value={p.url || ""}
+                      onChange={(e) => {
+                        const partners = [...(settings.content?.partners || [])];
+                        partners[index] = { ...partners[index], url: e.target.value };
+                        setSettings({ ...settings, content: { ...settings.content, partners } });
+                      }}
+                      className="px-3 py-2 border border-border rounded-lg text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Logo URL"
+                      value={p.logoUrl || ""}
+                      onChange={(e) => {
+                        const partners = [...(settings.content?.partners || [])];
+                        partners[index] = { ...partners[index], logoUrl: e.target.value };
+                        setSettings({ ...settings, content: { ...settings.content, partners } });
+                      }}
+                      className="px-3 py-2 border border-border rounded-lg text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const partners = (settings.content?.partners || []).filter((_, i) => i !== index);
+                        setSettings({ ...settings, content: { ...settings.content, partners } });
+                      }}
+                      className="text-xs text-danger text-left md:col-span-3"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2 border-t border-border pt-5">
+                <h3 className="text-sm font-semibold text-stone-800">Feature badges (one per line)</h3>
+                <textarea
+                  rows={5}
+                  value={badgesText}
+                  onChange={(e) => setBadgesText(e.target.value)}
+                  placeholder={"Vrat Friendly\nMillet-Based\nClean Label"}
+                  className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
               </div>
             </div>
           )}
@@ -414,22 +716,27 @@ export default function Settings() {
               <h2 className="text-lg font-semibold text-stone-900">Notification Preferences</h2>
               <div className="space-y-4">
                 {[
-                  { title: "New Order Alert", desc: "Get notified when a customer places a new order", enabled: true },
-                  { title: "Low Stock Warning", desc: "Alert when product stock drops below threshold", enabled: true },
-                  { title: "New Customer Signup", desc: "Notification when a new customer registers", enabled: false },
-                  { title: "Bulk Order Inquiry", desc: "Alert for new B2B bulk order inquiries", enabled: true },
-                  { title: "Review Received", desc: "When a customer leaves a product review", enabled: false },
-                  { title: "Payment Failed", desc: "Alert when a payment transaction fails", enabled: true },
-                  { title: "Daily Sales Summary", desc: "Daily email summary of sales and orders", enabled: true },
-                  { title: "Weekly Analytics Report", desc: "Weekly performance report via email", enabled: false },
+                  { key: "newOrderAlert", title: "New Order Alert", desc: "Get notified when a customer places a new order" },
+                  { key: "lowStockWarning", title: "Low Stock Warning", desc: "Alert when product stock drops below threshold" },
+                  { key: "newCustomerSignup", title: "New Customer Signup", desc: "Notification when a new customer registers" },
+                  { key: "bulkOrderInquiry", title: "Bulk Order Inquiry", desc: "Alert for new B2B bulk order inquiries" },
+                  { key: "reviewReceived", title: "Review Received", desc: "When a customer leaves a product review" },
+                  { key: "paymentFailed", title: "Payment Failed", desc: "Alert when a payment transaction fails" },
+                  { key: "dailySalesSummary", title: "Daily Sales Summary", desc: "Daily email summary of sales and orders" },
+                  { key: "weeklyAnalyticsReport", title: "Weekly Analytics Report", desc: "Weekly performance report via email" },
                 ].map((n) => (
-                  <div key={n.title} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                  <div key={n.key} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                     <div>
                       <p className="text-sm font-medium text-stone-800">{n.title}</p>
                       <p className="text-xs text-muted mt-0.5">{n.desc}</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked={n.enabled} className="sr-only peer" />
+                      <input
+                        type="checkbox"
+                        checked={Boolean(settings.notifications[n.key as keyof typeof settings.notifications])}
+                        onChange={(e) => updateSettings("notifications", n.key, e.target.checked)}
+                        className="sr-only peer"
+                      />
                       <div className="w-11 h-6 bg-stone-200 rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     </label>
                   </div>
@@ -446,16 +753,26 @@ export default function Settings() {
                   <label className="block text-sm font-medium text-stone-700 mb-3">Brand Colors</label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                      { label: "Primary", color: "#F97316" },
-                      { label: "Header BG", color: "#E8DCC8" },
-                      { label: "Footer BG", color: "#2D1B14" },
-                      { label: "Accent", color: "#FB923C" },
+                      { key: "primary", label: "Primary" },
+                      { key: "headerBg", label: "Header BG" },
+                      { key: "footerBg", label: "Footer BG" },
+                      { key: "accent", label: "Accent" },
                     ].map((c) => (
-                      <div key={c.label}>
+                      <div key={c.key}>
                         <p className="text-xs text-muted mb-1.5">{c.label}</p>
                         <div className="flex items-center gap-2">
-                          <input type="color" defaultValue={c.color} className="w-8 h-8 rounded border border-border cursor-pointer" />
-                          <input type="text" defaultValue={c.color} className="flex-1 px-3 py-2 border border-border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                          <input
+                            type="color"
+                            value={settings.appearance.brandColors[c.key as keyof typeof settings.appearance.brandColors]}
+                            onChange={(e) => updateNestedSettings("appearance", "brandColors", c.key, e.target.value)}
+                            className="w-8 h-8 rounded border border-border cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={settings.appearance.brandColors[c.key as keyof typeof settings.appearance.brandColors]}
+                            onChange={(e) => updateNestedSettings("appearance", "brandColors", c.key, e.target.value)}
+                            className="flex-1 px-3 py-2 border border-border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                          />
                         </div>
                       </div>
                     ))}
@@ -464,10 +781,29 @@ export default function Settings() {
                 <div className="border-t border-border pt-5">
                   <label className="block text-sm font-medium text-stone-700 mb-3">Homepage Sections</label>
                   <div className="space-y-3">
-                    {["Hero Carousel", "Benefits Section", "New Launches", "Our Products", "Testimonials", "Available At Partners", "Newsletter Signup"].map((section) => (
-                      <label key={section} className="flex items-center justify-between py-2 cursor-pointer">
-                        <span className="text-sm text-stone-700">{section}</span>
-                        <input type="checkbox" defaultChecked className="rounded border-border text-primary focus:ring-primary" />
+                    {[
+                      { key: "heroCarousel", label: "Hero Carousel" },
+                      { key: "benefitsSection", label: "Benefits Section" },
+                      { key: "newLaunches", label: "New Launches" },
+                      { key: "ourProducts", label: "Our Products" },
+                      { key: "testimonials", label: "Testimonials" },
+                      { key: "availableAtPartners", label: "Available At Partners" },
+                      { key: "newsletterSignup", label: "Newsletter Signup" },
+                    ].map((section) => (
+                      <label key={section.key} className="flex items-center justify-between py-2 cursor-pointer">
+                        <span className="text-sm text-stone-700">{section.label}</span>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(
+                            settings.appearance.homepageSections[
+                              section.key as keyof typeof settings.appearance.homepageSections
+                            ]
+                          )}
+                          onChange={(e) =>
+                            updateNestedSettings("appearance", "homepageSections", section.key, e.target.checked)
+                          }
+                          className="rounded border-border text-primary focus:ring-primary"
+                        />
                       </label>
                     ))}
                   </div>
@@ -475,6 +811,7 @@ export default function Settings() {
               </div>
             </div>
           )}
+
         </div>
       </div>
     </div>
