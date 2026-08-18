@@ -40,6 +40,7 @@ export default function NewProductPage() {
   ]);
   const [customization, setCustomization] = useState<ProductCustomization>(emptyCustomization());
   const [isActive, setIsActive] = useState(true);
+  const [freeDelivery, setFreeDelivery] = useState(false);
   const [form, setForm] = useState({
     name: "",
     slug: "",
@@ -160,6 +161,7 @@ export default function NewProductPage() {
         nutritionHighlights,
         amazonUrl: amazonUrl.trim(),
         isActive,
+        freeDelivery,
         packOptions: packOptions
           .filter((pack) => pack.units > 0)
           .map((pack) => ({
@@ -561,6 +563,53 @@ export default function NewProductPage() {
           </div>
 
           <ProductCustomizationEditor value={customization} onChange={setCustomization} />
+
+          {/* Shipping & Inventory */}
+          <div className="bg-card rounded-xl border border-border p-6">
+            <h2 className="text-base font-semibold text-stone-900 mb-4">Shipping & Delivery</h2>
+            <div className="space-y-4">
+              {/* Free Delivery Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-dashed border-border hover:border-primary/30 transition-colors">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label htmlFor="freeDelivery" className="text-sm font-semibold text-stone-900 cursor-pointer">
+                      🎁 Free Delivery
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted">
+                    Enable free delivery for this product regardless of cart total
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="freeDelivery"
+                    checked={freeDelivery}
+                    onChange={(e) => setFreeDelivery(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+              
+              {/* Visual indicator when enabled */}
+              {freeDelivery && (
+                <div className="rounded-lg bg-green-50 border border-green-200 p-4 animate-fadeIn">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">✅</span>
+                    <div>
+                      <p className="font-semibold text-green-900 text-sm mb-1">
+                        Free Delivery Enabled!
+                      </p>
+                      <p className="text-xs text-green-700">
+                        Orders containing this product will have free delivery. Perfect for promotional campaigns like Rakshabandhan, Diwali, etc.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Inventory */}
           <div className="bg-card rounded-xl border border-border p-6">

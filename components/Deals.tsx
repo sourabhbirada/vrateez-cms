@@ -23,6 +23,7 @@ type DealForm = {
   bgFrom: string;
   bgTo: string;
   position: number;
+  freeDelivery?: boolean;
 };
 
 const emptyForm = (): DealForm => ({
@@ -42,6 +43,7 @@ const emptyForm = (): DealForm => ({
   bgFrom: "#FFF5E6",
   bgTo: "#FFE8CC",
   position: 1,
+  freeDelivery: false,
 });
 
 export default function Deals() {
@@ -80,6 +82,7 @@ export default function Deals() {
       bgFrom: d.bgFrom || "#FFF5E6",
       bgTo: d.bgTo || "#FFE8CC",
       position: d.position || 1,
+      freeDelivery: d.freeDelivery || false,
     });
     setShowForm(true);
   };
@@ -190,6 +193,11 @@ export default function Deals() {
                   >
                     {deal.isActive ? "Active" : "Disabled"}
                   </span>
+                  {deal.freeDelivery && (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      🎁 Free Delivery
+                    </span>
+                  )}
                   <span className="text-xs text-muted">→ {deal.ctaLink}</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -439,6 +447,40 @@ export default function Deals() {
                   className="w-full px-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
               </div>
+              
+              {/* Free Delivery Toggle */}
+              <div className="p-4 rounded-lg border-2 border-dashed border-border hover:border-primary/30 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <label htmlFor="dealFreeDelivery" className="text-sm font-semibold text-stone-900 cursor-pointer">
+                        🎁 Free Delivery
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted">
+                      Enable to show free delivery badge on this deal
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="dealFreeDelivery"
+                      checked={form.freeDelivery || false}
+                      onChange={(e) => setForm({ ...form, freeDelivery: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+                {form.freeDelivery && (
+                  <div className="mt-3 rounded-lg bg-green-50 border border-green-200 p-3">
+                    <p className="text-xs text-green-700">
+                      ✓ This deal will show a "Free Delivery" badge
+                    </p>
+                  </div>
+                )}
+              </div>
+              
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => void saveDeal()}

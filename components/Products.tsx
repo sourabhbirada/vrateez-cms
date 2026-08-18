@@ -198,18 +198,25 @@ export default function Products() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <button
-                      type="button"
-                      onClick={() => void toggleActive(product)}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                        product.isActive !== false
-                          ? "bg-success/10 text-success hover:bg-success/20"
-                          : "bg-stone-100 text-stone-500 hover:bg-stone-200"
-                      }`}
-                      title={product.isActive !== false ? "Click to disable" : "Click to enable"}
-                    >
-                      {product.isActive !== false ? "Active" : "Disabled"}
-                    </button>
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => void toggleActive(product)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                          product.isActive !== false
+                            ? "bg-success/10 text-success hover:bg-success/20"
+                            : "bg-stone-100 text-stone-500 hover:bg-stone-200"
+                        }`}
+                        title={product.isActive !== false ? "Click to disable" : "Click to enable"}
+                      >
+                        {product.isActive !== false ? "Active" : "Disabled"}
+                      </button>
+                      {product.freeDelivery && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          🎁 Free Delivery
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="relative">
