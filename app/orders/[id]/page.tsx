@@ -119,7 +119,7 @@ export default function OrderDetailPage() {
     async function loadOrder() {
       try {
         setLoading(true);
-        const data = await apiFetch<{ order: Order }>(`/orders/${orderId}`);
+        const data = await apiFetch<{ order: Order }>(`/orders/admin/${orderId}`);
         setOrder(data.order);
 
         // If order has tracking number, fetch tracking details
